@@ -1,5 +1,6 @@
 package com.github.roosale.todiff.compilerplugin
 
+import com.github.roosale.todiff.compilerplugin.generation.GenerationExtensionImpl
 import com.google.auto.service.AutoService
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.com.intellij.mock.MockProject
@@ -13,10 +14,7 @@ class ToDiffComponentRegistrar : ComponentRegistrar {
         project: MockProject,
         configuration: CompilerConfiguration
     ) {
-        IrGenerationExtension.registerExtension(
-            project,
-            ToDiffIrGenerationExtension()
-        )
+        IrGenerationExtension.registerExtension(project, GenerationExtensionImpl())
     }
 
 }

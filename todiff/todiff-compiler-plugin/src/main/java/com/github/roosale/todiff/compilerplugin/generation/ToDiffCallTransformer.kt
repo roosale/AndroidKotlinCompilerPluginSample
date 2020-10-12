@@ -1,12 +1,10 @@
-package com.github.roosale.todiff.compilerplugin
+package com.github.roosale.todiff.compilerplugin.generation
 
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
 import org.jetbrains.kotlin.backend.common.deepCopyWithVariables
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
-import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.backend.jvm.codegen.AnnotationCodegen.Companion.annotationClass
-import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.IrFile
@@ -15,54 +13,19 @@ import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrReturn
 import org.jetbrains.kotlin.ir.expressions.impl.IrGetValueImpl
-import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.util.explicitParameters
 import org.jetbrains.kotlin.ir.util.parentClassOrNull
 import org.jetbrains.kotlin.ir.util.primaryConstructor
-import org.jetbrains.kotlin.ir.visitors.*
-
-fun FileLoweringPass.runOnFileInOrder(irFile: IrFile) {
-    irFile.acceptVoid(object : IrElementVisitorVoid {
-        override fun visitElement(element: IrElement) {
-            element.acceptChildrenVoid(this)
-        }
-
-        override fun visitFile(declaration: IrFile) {
-            lower(declaration)
-            declaration.acceptChildrenVoid(this)
-        }
-    })
-}
+import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
+import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 
 class CaptureDefaultArgumentsCallTransformer(
     private val pluginContext: IrPluginContext,
 ) : IrElementTransformerVoidWithContext(), FileLoweringPass {
 
-    private fun IrPluginContext.createIrBuilder(symbol: IrSymbol) =
-        DeclarationIrBuilder(
-            this,
-            symbol,
-            symbol.owner.startOffset,
-            symbol.owner.endOffset
-        )
-
     override fun lower(irFile: IrFile) {
         irFile.transformChildrenVoid()
     }
-
-
-//    @NotNull
-//    public String toString() {
-//        return "Cat(name=" + this.name + ", color=" + this.color + ", age=" + this.age + ")";
-//    }
-
-//    @NotNull
-//    public String toString() {
-//        val isNameMatch = this.name.toString() == "name"
-//        val isColorMatch = this.color.toString() == "color"
-//        val isAgeMatch = this.age.toString() == "age"
-//        return "Cat(name=" + this.name + ", color=" + this.color + ", age=" + this.age + ")";
-//    }
 
     override fun visitFunctionNew(declaration: IrFunction): IrStatement {
         val parentClass = declaration.parentClassOrNull
@@ -78,7 +41,6 @@ class CaptureDefaultArgumentsCallTransformer(
                 irDispatchReceiverParameter.symbol
             )
         }
-
 
         if (classHasDiffAnnotation && isToStringFunction) {
             declaration.body?.transformChildrenVoid(object : IrElementTransformerVoid() {

@@ -5,11 +5,6 @@ import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
-private val cat = Cat(
-    name = "Neferpitou",
-    age = 1.3
-)
-
 class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {

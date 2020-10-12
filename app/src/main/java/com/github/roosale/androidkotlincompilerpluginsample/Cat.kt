@@ -9,6 +9,11 @@ data class Cat(
     val age: Double = 0.2
 )
 
+internal val cat = Cat(
+    name = "Neferpitou",
+    age = 1.3
+)
+
 // without @ToDiff annotation
 // Cat(name=Neferpitou, color=Grey, age=1.3)
 
