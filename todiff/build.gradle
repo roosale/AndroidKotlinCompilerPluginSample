@@ -18,7 +18,7 @@ subprojects {
 
         kotlinOptions {
             jvmTarget = JavaVersion.VERSION_1_8.toString()
-            freeCompilerArgs = ['-Xjvm-default=enable']
+            freeCompilerArgs = ["-Xjvm-default=enable"]
             useIR = true
         }
     }
