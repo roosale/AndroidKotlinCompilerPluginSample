@@ -1,0 +1,12 @@
+plugins {
+    id "org.jetbrains.kotlin.jvm"
+    id "org.jetbrains.kotlin.kapt" 
+}
+
+dependencies {
+    implementation project(":todiff-annotation")
+    compileOnly "org.jetbrains.kotlin:kotlin-compiler-embeddable"
+
+    kapt "com.google.auto.service:auto-service:1.0-rc6"
+    compileOnly "com.google.auto.service:auto-service-annotations:1.0-rc6"
+}

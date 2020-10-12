@@ -1,0 +1,29 @@
+plugins {
+    id "org.jetbrains.kotlin.jvm" version "1.4.10" apply false
+}
+
+subprojects {
+    group = "com.github.roosale.todiff"
+    version = "0.0.1"
+
+    repositories {
+        google()
+        mavenCentral()
+        jcenter()
+    }
+
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+
+        kotlinOptions {
+            jvmTarget = JavaVersion.VERSION_1_8.toString()
+            freeCompilerArgs = ['-Xjvm-default=enable']
+            useIR = true
+        }
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

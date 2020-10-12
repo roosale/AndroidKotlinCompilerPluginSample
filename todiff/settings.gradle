@@ -1,0 +1,6 @@
+rootProject.name = "todiff"
+
+include ":todiff-annotation"
+include ":todiff-gradle-plugin"
+include ":todiff-compiler-plugin"
+include ":todiff-compiler-plugin-native"

@@ -1,0 +1,26 @@
+plugins {
+    id "org.jetbrains.kotlin.jvm"
+    id "org.jetbrains.kotlin.kapt"
+}
+
+dependencies {
+    implementation project(":todiff-annotation")
+    compileOnly "org.jetbrains.kotlin:kotlin-compiler"
+
+    kapt "com.google.auto.service:auto-service:1.0-rc6"
+    compileOnly "com.google.auto.service:auto-service-annotations:1.0-rc6"
+}
+
+compileKotlin { dependsOn("syncSource") }
+task syncSource(type: Sync) {
+    from(project(":todiff-compiler-plugin").sourceSets.main.allSource)
+    into("src/main/kotlin")
+    filter {
+        switch(it) {
+            case "import org.jetbrains.kotlin.com.intellij.mock.MockProject":
+                "import com.intellij.mock.MockProject"
+            break
+            default: it
+        }
+    }
+}

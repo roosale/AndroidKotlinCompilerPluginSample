@@ -1,0 +1,18 @@
+plugins {
+    id "org.jetbrains.kotlin.jvm"
+    id "java-gradle-plugin"
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.4.10"
+    implementation "org.jetbrains.kotlin:kotlin-gradle-plugin-api:1.4.10"
+}
+
+gradlePlugin {
+    plugins {
+        captureDefaultArgumentsPlugin {
+            id = "com.github.roosale.todiff"
+            implementationClass = "com.github.roosale.todiff.gradleplugin.ToDiffGradlePlugin"
+        }
+    }
+}
