@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrReturn
 import org.jetbrains.kotlin.ir.expressions.impl.IrGetValueImpl
+import org.jetbrains.kotlin.ir.util.deepCopyWithSymbols
 import org.jetbrains.kotlin.ir.util.explicitParameters
 import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
@@ -82,31 +83,62 @@ class ToDiffLoweringPass(
                 val primaryConstructor = irClass.primaryConstructor
                     ?.deepCopyWithVariables() ?: return@irBlock
 
-                val values = irClass.declarations
+                val namesToBackingFields = irClass.declarations
                     .filterIsInstance<IrProperty>()
                     .take(primaryConstructor.explicitParameters.size)
                     .mapNotNull { it.backingField }
-                    .map { it.name.asString() to irGetField(irThis(), it) }
+                    .map { it.name.asString() to it }
 
                 // build new expression
                 val irConcat = irConcat().apply {
                     // prefix
                     addArgument(irString("Diff$${irClass.name.asString()}("))
 
-                    values.forEachIndexed { index, pair ->
-                        val (name, value) = pair
+                    namesToBackingFields.forEachIndexed { index, pair ->
+                        val (name, backingField) = pair
                         val default = primaryConstructor.namesToDefaults[name]
-                        // name
-                        addArgument(irString(name))
+                        // 'name' if null or equal
+                        // '*name*' if not equal
+                        addArgument(
+                            irIfThenElse(
+                                pluginContext.irBuiltIns.stringType,
+                                irEquals(
+                                    irGetField(irThis(), backingField),
+                                    (default ?: irNull()).deepCopyWithSymbols()
+                                ),
+                                irString(name),
+                                irString("*$name*")
+                            )
+                        )
                         // =
                         addArgument(irString("="))
                         // default ->
                         if (default != null) {
-                            addArgument(default)
-                            addArgument(irString("->"))
+                            addArgument(
+                                irIfThenElse(
+                                    pluginContext.irBuiltIns.anyType,
+                                    irNotEquals(
+                                        irGetField(irThis(), backingField),
+                                        default.deepCopyWithSymbols()
+                                    ),
+                                    default,
+                                    irString("")
+                                )
+                            )
+                            addArgument(
+                                irIfThenElse(
+                                    pluginContext.irBuiltIns.anyType,
+                                    irNotEquals(
+                                        irGetField(irThis(), backingField),
+                                        default.deepCopyWithSymbols()
+                                    ),
+                                    irString("->"),
+                                    irString("")
+                                )
+                            )
                         }
                         // value
-                        addArgument(value)
+                        addArgument(irGetField(irThis(), backingField))
 
                         // separator
                         if (index < (primaryConstructor.valueParameters.size - 1)) {
