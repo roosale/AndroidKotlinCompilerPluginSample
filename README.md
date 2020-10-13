@@ -27,3 +27,5 @@ println(cat)
 ```
 
 Please keep in mind that the IR compiler is still experimental and not well documented publicly. :-) 
+
+Tested on Android Studio 4.0.1
