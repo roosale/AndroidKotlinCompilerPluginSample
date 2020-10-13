@@ -22,10 +22,7 @@ import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 
 class GenerationExtensionImpl : IrGenerationExtension {
 
-    override fun generate(
-        moduleFragment: IrModuleFragment,
-        pluginContext: IrPluginContext
-    ) {
+    override fun generate(moduleFragment: IrModuleFragment, pluginContext: IrPluginContext) {
         ToDiffLoweringPass(pluginContext).lower(moduleFragment)
     }
 
@@ -36,81 +33,96 @@ class ToDiffLoweringPass(
 ) : ClassLoweringPass {
 
     override fun lower(irClass: IrClass) {
-        // validate class
         if (irClass.isToDiff) {
-            irClass.transformChildrenVoid(object : IrElementTransformerVoidWithContext() {
-
-                override fun visitFunctionNew(declaration: IrFunction): IrStatement {
-                    // 'this' expression
-                    fun irThis(): IrExpression {
-                        val irDispatchReceiverParameter = declaration.dispatchReceiverParameter!!
-                        return IrGetValueImpl(
-                            declaration.startOffset,
-                            declaration.endOffset,
-                            irDispatchReceiverParameter.type,
-                            irDispatchReceiverParameter.symbol
-                        )
-                    }
-
-                    // validate function
-                    if (declaration.isToString) {
-                        declaration.body?.transformChildrenVoid(object :
-                            IrElementTransformerVoid() {
-
-                            override fun visitReturn(expression: IrReturn): IrExpression {
-                                return IrBlockBuilder(
-                                    pluginContext,
-                                    currentScope?.scope!!,
-                                    expression.startOffset,
-                                    expression.endOffset
-                                ).irBlock {
-                                    val primaryConstructor = irClass.primaryConstructor
-                                        ?.deepCopyWithVariables() ?: return@irBlock
-
-                                    val prefix = "Diff$${irClass.name.asString()}("
-                                    val postfix = ")"
-
-                                    val defaultValues = primaryConstructor.valueParameters
-                                        .map { it.name.asString() to it.defaultValue?.expression }
-                                        .toMap()
-
-                                    val getFields = irClass.declarations
-                                        .filterIsInstance<IrProperty>()
-                                        .take(primaryConstructor.explicitParameters.size)
-                                        .mapNotNull { it.backingField }
-                                        .map { it.name.asString() to irGetField(irThis(), it) }
-
-                                    val irConcat = irConcat().apply {
-                                        addArgument(irString(prefix))
-                                        getFields.forEachIndexed { index, pair ->
-                                            val (name, field) = pair
-                                            val defaultValue = defaultValues[name]
-                                            addArgument(irString(name))
-                                            addArgument(irString("="))
-                                            if (defaultValue != null) {
-                                                addArgument(defaultValue)
-                                                addArgument(irString("->"))
-                                            }
-                                            addArgument(field)
-                                            if (index < (primaryConstructor.valueParameters.size - 1)) {
-                                                addArgument(irString(", "))
-                                            }
-                                        }
-                                        addArgument(irString(postfix))
-                                    }
-
-                                    +irReturn(irConcat)
-                                }
-                            }
-
-                        })
-                    }
-
-                    return super.visitFunctionNew(declaration)
-                }
-
-            })
+            irClass.transformToDiffClass()
         }
     }
+
+    private fun IrClass.transformToDiffClass() =
+        transformChildrenVoid(object : IrElementTransformerVoidWithContext() {
+
+            override fun visitFunctionNew(declaration: IrFunction): IrStatement {
+                if (declaration.isToString) {
+                    declaration.transformToStringFunction(
+                        irClass = this@transformToDiffClass,
+                        scope = currentScope?.scope!!
+                    )
+                }
+
+                return super.visitFunctionNew(declaration)
+            }
+
+        })
+
+    private fun IrFunction.transformToStringFunction(
+        irClass: IrClass,
+        scope: Scope
+    ) = body?.transformChildrenVoid(object : IrElementTransformerVoid() {
+
+        override fun visitReturn(expression: IrReturn): IrExpression {
+            // 'this' expression
+            fun irThis(): IrExpression {
+                val irDispatchReceiverParameter = dispatchReceiverParameter!!
+                return IrGetValueImpl(
+                    startOffset,
+                    endOffset,
+                    irDispatchReceiverParameter.type,
+                    irDispatchReceiverParameter.symbol
+                )
+            }
+
+            // new toDiff expression
+            return IrBlockBuilder(
+                pluginContext,
+                scope,
+                expression.startOffset,
+                expression.endOffset
+            ).irBlock {
+                // gather expression pieces
+                val primaryConstructor = irClass.primaryConstructor
+                    ?.deepCopyWithVariables() ?: return@irBlock
+
+                val values = irClass.declarations
+                    .filterIsInstance<IrProperty>()
+                    .take(primaryConstructor.explicitParameters.size)
+                    .mapNotNull { it.backingField }
+                    .map { it.name.asString() to irGetField(irThis(), it) }
+
+                // build new expression
+                val irConcat = irConcat().apply {
+                    // prefix
+                    addArgument(irString("Diff$${irClass.name.asString()}("))
+
+                    values.forEachIndexed { index, pair ->
+                        val (name, value) = pair
+                        val default = primaryConstructor.namesToDefaults[name]
+                        // name
+                        addArgument(irString(name))
+                        // =
+                        addArgument(irString("="))
+                        // default ->
+                        if (default != null) {
+                            addArgument(default)
+                            addArgument(irString("->"))
+                        }
+                        // value
+                        addArgument(value)
+
+                        // separator
+                        if (index < (primaryConstructor.valueParameters.size - 1)) {
+                            addArgument(irString(", "))
+                        }
+                    }
+
+                    // suffix
+                    addArgument(irString(")"))
+                }
+
+                // return new expression
+                +irReturn(irConcat)
+            }
+        }
+
+    })
 
 }
