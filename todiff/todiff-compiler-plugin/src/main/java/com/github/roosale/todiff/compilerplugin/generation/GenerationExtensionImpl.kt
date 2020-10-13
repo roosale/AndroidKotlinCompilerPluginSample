@@ -11,12 +11,10 @@ import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
-import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrReturn
 import org.jetbrains.kotlin.ir.expressions.impl.IrGetValueImpl
 import org.jetbrains.kotlin.ir.util.deepCopyWithSymbols
-import org.jetbrains.kotlin.ir.util.explicitParameters
 import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
@@ -72,33 +70,24 @@ class ToDiffLoweringPass(
                 )
             }
 
-            // new toDiff expression
             return IrBlockBuilder(
                 pluginContext,
                 scope,
                 expression.startOffset,
                 expression.endOffset
             ).irBlock {
-                // gather expression pieces
                 val primaryConstructor = irClass.primaryConstructor
                     ?.deepCopyWithVariables() ?: return@irBlock
 
-                val namesToBackingFields = irClass.declarations
-                    .filterIsInstance<IrProperty>()
-                    .take(primaryConstructor.explicitParameters.size)
-                    .mapNotNull { it.backingField }
-                    .map { it.name.asString() to it }
-
-                // build new expression
                 val irConcat = irConcat().apply {
                     // prefix
                     addArgument(irString("Diff$${irClass.name.asString()}("))
 
-                    namesToBackingFields.forEachIndexed { index, pair ->
+                    irClass.namesToBackingFields.forEachIndexed { index, pair ->
                         val (name, backingField) = pair
                         val default = primaryConstructor.namesToDefaults[name]
-                        // 'name' if null or equal
-                        // '*name*' if not equal
+                        // if same, 'name'
+                        // if different, '*name*'
                         addArgument(
                             irIfThenElse(
                                 pluginContext.irBuiltIns.stringType,
@@ -112,7 +101,8 @@ class ToDiffLoweringPass(
                         )
                         // =
                         addArgument(irString("="))
-                        // default ->
+                        // if same, ''
+                        // if different, 'default ->'
                         if (default != null) {
                             addArgument(
                                 irIfThenElse(
