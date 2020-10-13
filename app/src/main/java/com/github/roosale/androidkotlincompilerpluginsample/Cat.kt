@@ -18,4 +18,8 @@ internal val cat = Cat(
 // Cat(name=Neferpitou, color=Grey, age=1.3)
 
 // with @ToDiff annotation
-// Cat(*name*=Taza->Neferpitou, color=Grey, *age*=0.2->1.3)
+// Diff$Cat(*name*=Taza->Neferpitou, color=Grey, *age*=0.2->1.3)
+
+//fun main() {
+//    println(cat)
+//}

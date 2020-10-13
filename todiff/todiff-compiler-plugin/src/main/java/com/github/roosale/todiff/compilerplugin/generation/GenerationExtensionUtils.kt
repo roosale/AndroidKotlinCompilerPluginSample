@@ -1,22 +1,20 @@
 package com.github.roosale.todiff.compilerplugin.generation
 
-import org.jetbrains.kotlin.backend.common.FileLoweringPass
-import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.declarations.IrFile
-import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
-import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
-import org.jetbrains.kotlin.ir.visitors.acceptVoid
+import com.github.roosale.todiff.annotation.ToDiff
+import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.util.hasAnnotation
+import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.Name
 
-fun FileLoweringPass.runOnFileInOrder(irFile: IrFile) {
-    irFile.acceptVoid(object : IrElementVisitorVoid {
-        override fun visitElement(element: IrElement) {
-            element.acceptChildrenVoid(this)
-        }
+// is data class with @ToDiff annotation
+val IrClass?.isToDiff: Boolean
+    get() = (this != null)
+            && isData
+            && hasAnnotation(FqName(ToDiff::class.java.name))
 
-        override fun visitFile(declaration: IrFile) {
-            lower(declaration)
-            declaration.acceptChildrenVoid(this)
-        }
-    })
-}
+// is toString() function
+val IrFunction?.isToString: Boolean
+    get() = (this != null)
+            && name == Name.identifier("toString")
 
