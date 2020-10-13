@@ -31,7 +31,7 @@ val IrConstructor?.namesToDefaults: Map<String, IrExpression>
             .toMap()
     }
 
-// class values (name:String, backingFields:IrField) list
+// class values (name:String, backingFields:IrField) list of pairs
 val IrClass?.namesToBackingFields: List<Pair<String, IrField>>
     get() {
         if (this == null) return emptyList()

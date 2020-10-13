@@ -59,7 +59,6 @@ class ToDiffLoweringPass(
     ) = body?.transformChildrenVoid(object : IrElementTransformerVoid() {
 
         override fun visitReturn(expression: IrReturn): IrExpression {
-            // 'this' expression
             fun irThis(): IrExpression {
                 val irDispatchReceiverParameter = dispatchReceiverParameter!!
                 return IrGetValueImpl(
@@ -79,15 +78,17 @@ class ToDiffLoweringPass(
                 val primaryConstructor = irClass.primaryConstructor
                     ?.deepCopyWithVariables() ?: return@irBlock
 
-                val irConcat = irConcat().apply {
-                    // prefix
+                val toDiffExpression = irConcat().apply {
+                    /* PREFIX */
+                    // + "Diff$className"
                     addArgument(irString("Diff$${irClass.name.asString()}("))
 
                     irClass.namesToBackingFields.forEachIndexed { index, pair ->
                         val (name, backingField) = pair
                         val default = primaryConstructor.namesToDefaults[name]
-                        // if same, 'name'
-                        // if different, '*name*'
+
+                        /* NAME */
+                        // + if (this.backingField == default ?: null) { name } else { "*$name*" }
                         addArgument(
                             irIfThenElse(
                                 pluginContext.irBuiltIns.stringType,
@@ -99,10 +100,16 @@ class ToDiffLoweringPass(
                                 irString("*$name*")
                             )
                         )
-                        // =
+
+                        // + "="
                         addArgument(irString("="))
-                        // if same, ''
-                        // if different, 'default ->'
+
+                        /* DIFF */
+                        // if (default != null) {
+                        //     + if (this.backingField != default) { default } else { "" }
+                        //     + if (this.backingField != default) { "->" } else { "" }
+                        // }
+                        // + this.backingField
                         if (default != null) {
                             addArgument(
                                 irIfThenElse(
@@ -127,21 +134,22 @@ class ToDiffLoweringPass(
                                 )
                             )
                         }
-                        // value
                         addArgument(irGetField(irThis(), backingField))
 
-                        // separator
-                        if (index < (primaryConstructor.valueParameters.size - 1)) {
+                        /* SEPARATOR */
+                        // + ", "
+                        val isNotLastField = index < (primaryConstructor.valueParameters.size - 1)
+                        if (isNotLastField) {
                             addArgument(irString(", "))
                         }
                     }
 
-                    // suffix
+                    /* SUFFIX */
+                    // + ")"
                     addArgument(irString(")"))
                 }
 
-                // return new expression
-                +irReturn(irConcat)
+                +irReturn(toDiffExpression)
             }
         }
 
